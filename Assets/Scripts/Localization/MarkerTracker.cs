@@ -10,6 +10,9 @@ public class MarkerTracker : MonoBehaviour
 
     [SerializeField]
     private GameObject markerPrefab;
+    
+    [SerializeField]
+    private MarkerMap markerMap;
 
     private readonly Dictionary<TrackableId, GameObject>
         markers = new();
@@ -66,6 +69,22 @@ public class MarkerTracker : MonoBehaviour
             marker.transform.SetPositionAndRotation(
                 image.transform.position,
                 image.transform.rotation
+            );
+        }
+        
+        if (markerMap.TryGetMarker(
+                image.referenceImage.name,
+                out CampusMarker campusMarker))
+        {
+            Debug.Log(
+                $"Recognized: {campusMarker.markerName} | " +
+                $"Campus position: {campusMarker.campusPosition}"
+            );
+        }
+        else
+        {
+            Debug.LogWarning(
+                $"No campus mapping for: {image.referenceImage.name}"
             );
         }
     }

@@ -6250,6 +6250,53 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1545687380}
   m_CullTransparentMesh: 1
+--- !u!1 &1565512414
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1565512416}
+  - component: {fileID: 1565512415}
+  m_Layer: 0
+  m_Name: CampusWaypointTest
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1565512415
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1565512414}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: cae201fc3afb4708b61114253508cd21, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CampusWaypointVisualizer
+  coordinateMapper: {fileID: 1571486779}
+  waypointPrefab: {fileID: 4856048508085910845, guid: 2faf998feb50a9c4eb38166d44018ca4, type: 3}
+  campusPosition: {x: 1, y: 0, z: 0}
+--- !u!4 &1565512416
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1565512414}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -0.13125, y: -0, z: 0.26336}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1571486778
 GameObject:
   m_ObjectHideFlags: 0
@@ -8547,3 +8594,4 @@ SceneRoots:
   - {fileID: 331264285}
   - {fileID: 2131190853}
   - {fileID: 1571486780}
+  - {fileID: 1565512416}

@@ -1,5 +1,5 @@
 using UnityEngine;
-
+using System;
 public class CoordinateMapper : MonoBehaviour
 {
     [SerializeField]
@@ -75,5 +75,30 @@ public class CoordinateMapper : MonoBehaviour
     {
         IsAligned = false;
         campusFromAR = Matrix4x4.identity;
+    }
+    
+    public event Action AlignmentUpdated;
+
+    public string LastAlignmentMarker { get; private set; }
+
+    public void Recalibrate(
+        Vector3 markerARPosition,
+        Quaternion markerARRotation,
+        Vector3 markerCampusPosition,
+        Quaternion markerCampusRotation,
+        string markerName)
+    {
+        Align(
+            markerARPosition,
+            markerARRotation,
+            markerCampusPosition,
+            markerCampusRotation
+        );
+
+        LastAlignmentMarker = markerName;
+
+        AlignmentUpdated?.Invoke();
+
+        Debug.Log($"RELOCALIZED using: {markerName}");
     }
 }

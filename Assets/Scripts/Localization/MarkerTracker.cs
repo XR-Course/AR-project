@@ -17,6 +17,8 @@ public class MarkerTracker : MonoBehaviour
 
     [SerializeField]
     private CoordinateMapper coordinateMapper;
+    
+    private bool checkpointProcessed = false;
 
     private readonly Dictionary<TrackableId, GameObject>
         markers = new();
@@ -57,6 +59,20 @@ public class MarkerTracker : MonoBehaviour
 
         bool isTracking =
             image.trackingState == TrackingState.Tracking;
+        
+        if (image.referenceImage.name == "HallwayCheckpoint")
+        {
+            Debug.Log(
+                $"CHECKPOINT DEBUG | " +
+                $"Tracking: {image.trackingState} | " +
+                $"Aligned: {coordinateMapper.IsAligned} | " +
+                $"Processed: {checkpointProcessed}"
+            );
+        }
+        
+        Debug.Log(
+            $"TRACKED IMAGE: {image.referenceImage.name}"
+        );
 
         marker.SetActive(isTracking);
 
@@ -84,24 +100,46 @@ public class MarkerTracker : MonoBehaviour
         // a known marker with reliable tracking.
         if (!coordinateMapper.IsAligned)
         {
-            // For this home test, align the campus floor
-            // with the horizontal plane of the AR world.
+          
             Quaternion campusRotation = Quaternion.Euler(campusMarker.campusRotation);
 
-            // This assumes a level, horizontal marker.
+            // Temporary rotation handling for our home test
+            // with horizontal markers.
             Quaternion horizontalRotation = Quaternion.Euler(0f, image.transform.eulerAngles.y, 0f);
 
-            coordinateMapper.Align(
-                image.transform.position,
-                horizontalRotation,
-                campusMarker.campusPosition,
-                campusRotation
-            );
+            if (!coordinateMapper.IsAligned)
+            {
+                // Only EntranceMarker can initialize localization.
+                if (campusMarker.markerName == "EntranceMarker")
+                {
+                    coordinateMapper.Recalibrate(
+                        image.transform.position,
+                        horizontalRotation,
+                        campusMarker.campusPosition,
+                        campusRotation,
+                        campusMarker.markerName
+                    );
 
-            Debug.Log(
-                $"Aligned using: {campusMarker.markerName} | " +
-                $"Campus position: {campusMarker.campusPosition}"
-            );
+                    Debug.Log("Initial localization complete.");
+                }
+            }
+            else if (
+                campusMarker.markerName == "HallwayCheckpoint" &&
+                !checkpointProcessed)
+            {
+                coordinateMapper.Recalibrate(
+                    image.transform.position,
+                    horizontalRotation,
+                    campusMarker.campusPosition,
+                    campusRotation,
+                    campusMarker.markerName
+                );
+
+                checkpointProcessed = true;
+
+                Debug.Log("Checkpoint recalibration complete.");
+            }
+
         }
     }
 }

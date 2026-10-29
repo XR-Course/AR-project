@@ -138,4 +138,22 @@ public class CoordinateGridVisualizer : MonoBehaviour
     {
         ClearGrid();
     }
+    
+    private void OnEnable()
+    {
+        if (coordinateMapper != null)
+            coordinateMapper.AlignmentUpdated += OnAlignmentUpdated;
+    }
+
+    private void OnDisable()
+    {
+        if (coordinateMapper != null)
+            coordinateMapper.AlignmentUpdated -= OnAlignmentUpdated;
+    }
+
+    private void OnAlignmentUpdated()
+    {
+        ClearGrid();
+        gridCreated = false;
+    }
 }

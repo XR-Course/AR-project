@@ -8183,7 +8183,7 @@ MonoBehaviour:
     campusPosition: {x: 0, y: 0, z: 0}
     campusRotation: {x: 0, y: 0, z: 0}
   - markerName: HallwayCheckpoint
-    campusPosition: {x: 1, y: 0, z: 5}
+    campusPosition: {x: 1, y: 0, z: 0}
     campusRotation: {x: 0, y: 0, z: 0}
 --- !u!1001 &891726464977617767
 PrefabInstance:

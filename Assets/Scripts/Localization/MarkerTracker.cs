@@ -6,99 +6,124 @@ using UnityEngine.XR.ARSubsystems;
 
 public class MarkerTracker : MonoBehaviour
 {
-    [SerializeField]
-    private ARTrackedImageManager imageManager;
+    [Header("References")]
+    [SerializeField] private ARTrackedImageManager imageManager;
+    [SerializeField] private GameObject markerPrefab;
+    [SerializeField] private MarkerMap markerMap;
+    [SerializeField] private CoordinateMapper coordinateMapper;
 
-    [SerializeField]
-    private GameObject markerPrefab;
+    [Header("Recalibration")]
+    [SerializeField] private float recalibrationCooldown = 5f;
 
-    [SerializeField]
-    private MarkerMap markerMap;
+    private readonly Dictionary<TrackableId, GameObject> markers = new();
 
-    [SerializeField]
-    private CoordinateMapper coordinateMapper;
+    // Checkpoints already recalibrated during their current
+    // continuous Tracking period.
+    private readonly HashSet<TrackableId> calibratedThisTrackingPeriod = new();
 
-    private bool checkpointProcessed = false;
-
-    private readonly Dictionary<TrackableId, GameObject>
-        markers = new();
+    // Last successful recalibration time for each checkpoint.
+    private readonly Dictionary<string, float> lastRecalibrationTimes = new();
 
     private void OnEnable()
     {
-        imageManager.trackablesChanged.AddListener(OnImagesChanged);
+        if (imageManager != null)
+        {
+            imageManager.trackablesChanged.AddListener(OnImagesChanged);
+        }
     }
 
     private void OnDisable()
     {
-        imageManager.trackablesChanged.RemoveListener(OnImagesChanged);
+        if (imageManager != null)
+        {
+            imageManager.trackablesChanged.RemoveListener(OnImagesChanged);
+        }
     }
 
     private void OnImagesChanged(
         ARTrackablesChangedEventArgs<ARTrackedImage> args)
     {
         foreach (var image in args.added)
+        {
             UpdateMarker(image);
+        }
 
         foreach (var image in args.updated)
+        {
             UpdateMarker(image);
+        }
 
         foreach (var removed in args.removed)
         {
+            calibratedThisTrackingPeriod.Remove(removed.Key);
+
             if (markers.Remove(removed.Key, out var marker))
+            {
                 Destroy(marker);
+            }
         }
     }
 
     private void UpdateMarker(ARTrackedImage image)
     {
-        // Create a visual marker for each detected image.
         if (!markers.TryGetValue(image.trackableId, out var marker))
         {
-            marker = Instantiate(markerPrefab);
-            markers.Add(image.trackableId, marker);
+            if (markerPrefab != null)
+            {
+                marker = Instantiate(markerPrefab);
+                markers.Add(image.trackableId, marker);
+            }
         }
 
         bool isTracking =
             image.trackingState == TrackingState.Tracking;
 
-        marker.SetActive(isTracking);
+        if (marker != null)
+        {
+            marker.SetActive(isTracking);
+        }
 
-        // Only use images with reliable tracking.
+        // Allow a future recalibration after tracking is lost.
         if (!isTracking)
+        {
+            calibratedThisTrackingPeriod.Remove(image.trackableId);
             return;
+        }
 
-        // Update the visual marker's position and rotation.
-        marker.transform.SetPositionAndRotation(
-            image.transform.position,
-            image.transform.rotation
-        );
+        if (marker != null)
+        {
+            marker.transform.SetPositionAndRotation(
+                image.transform.position,
+                image.transform.rotation
+            );
+        }
 
-        // Find the known campus coordinates of this marker.
+        if (markerMap == null || coordinateMapper == null)
+        {
+            return;
+        }
+
         if (!markerMap.TryGetMarker(
-            image.referenceImage.name,
-            out CampusMarker campusMarker))
+                image.referenceImage.name,
+                out CampusMarker campusMarker))
         {
             Debug.LogWarning(
                 $"No campus mapping for: {image.referenceImage.name}"
             );
-
             return;
         }
 
         Quaternion campusRotation =
             Quaternion.Euler(campusMarker.campusRotation);
 
-        // Previous rotation method for home testing.
-        // Restored because the experimental projected-axis
-        // method caused incorrect grid placement.
-        Quaternion horizontalRotation =
-            Quaternion.Euler(
-                0f,
-                image.transform.eulerAngles.y,
-                0f
-            );
+        // Preserve the rotation calculation from our working version.
+        Quaternion horizontalRotation = Quaternion.Euler(
+            0f,
+            image.transform.eulerAngles.y,
+            0f
+        );
 
-        // INITIAL LOCALIZATION
+        // Initial localization.
         if (!coordinateMapper.IsAligned)
         {
             if (campusMarker.markerName == "EntranceMarker")
@@ -113,95 +138,126 @@ public class MarkerTracker : MonoBehaviour
 
                 Debug.Log("Initial localization complete.");
             }
+
+            return;
         }
 
-        // CHECKPOINT RELOCALIZATION
-        else if (
-            campusMarker.markerName == "HallwayCheckpoint" &&
-            !checkpointProcessed)
+        // Checkpoint-based recalibration.
+        if (campusMarker.markerName == "HallwayCheckpoint")
         {
-            // Expected checkpoint position based on
-            // the existing entrance alignment.
-            Vector3 expectedCheckpointAR =
-                coordinateMapper.CampusToAR(
-                    campusMarker.campusPosition
-                );
-
-            // Actual checkpoint position detected by ARCore.
-            Vector3 detectedCheckpointAR =
-                image.transform.position;
-
-            Vector3 difference =
-                detectedCheckpointAR - expectedCheckpointAR;
-
-            Debug.Log(
-                $"CHECKPOINT ERROR | " +
-                $"Expected: {expectedCheckpointAR} | " +
-                $"Detected: {detectedCheckpointAR} | " +
-                $"Difference: {difference} | " +
-                $"Distance: {difference.magnitude:F2}m"
-            );
-
-            // Log marker rotation information.
-            Debug.Log(
-                $"CHECKPOINT ROTATION | " +
-                $"Image: {image.transform.eulerAngles} | " +
-                $"Horizontal: {horizontalRotation.eulerAngles} | " +
-                $"Campus: {campusRotation.eulerAngles}"
-            );
-
-            // Calculate the expected AR-world forward
-            // direction of this checkpoint.
-            Vector3 expectedForward =
-                coordinateMapper.CampusToAR(
-                    campusMarker.campusPosition +
-                    campusRotation * Vector3.forward
-                ) -
-                coordinateMapper.CampusToAR(
-                    campusMarker.campusPosition
-                );
-
-            expectedForward.y = 0f;
-
-            if (expectedForward.sqrMagnitude > 0.0001f)
-            {
-                expectedForward.Normalize();
-
-                float expectedHeading =
-                    Mathf.Atan2(
-                        expectedForward.x,
-                        expectedForward.z
-                    ) * Mathf.Rad2Deg;
-
-                float detectedHeading =
-                    horizontalRotation.eulerAngles.y;
-
-                float headingDifference =
-                    Mathf.DeltaAngle(
-                        expectedHeading,
-                        detectedHeading
-                    );
-
-                Debug.Log(
-                    $"HEADING DEBUG | " +
-                    $"Expected AR heading: {expectedHeading:F1} | " +
-                    $"Detected AR heading: {detectedHeading:F1} | " +
-                    $"Difference: {headingDifference:F1} degrees"
-                );
-            }
-
-            // Recalibrate using the hallway checkpoint.
-            coordinateMapper.Recalibrate(
-                image.transform.position,
-                horizontalRotation,
-                campusMarker.campusPosition,
+            TryRecalibrateCheckpoint(
+                image,
+                campusMarker,
                 campusRotation,
-                campusMarker.markerName
+                horizontalRotation
+            );
+        }
+    }
+
+    private void TryRecalibrateCheckpoint(
+        ARTrackedImage image,
+        CampusMarker campusMarker,
+        Quaternion campusRotation,
+        Quaternion horizontalRotation)
+    {
+        TrackableId id = image.trackableId;
+        string checkpointName = campusMarker.markerName;
+
+        // Only one successful recalibration per continuous
+        // Tracking period.
+        if (calibratedThisTrackingPeriod.Contains(id))
+        {
+            return;
+        }
+
+        // Prevent rapid recalibration.
+        if (lastRecalibrationTimes.TryGetValue(
+                checkpointName,
+                out float lastTime))
+        {
+            float elapsed = Time.time - lastTime;
+
+            if (elapsed < recalibrationCooldown)
+            {
+                return;
+            }
+        }
+
+        Vector3 expectedCheckpointAR =
+            coordinateMapper.CampusToAR(campusMarker.campusPosition);
+
+        Vector3 detectedCheckpointAR =
+            image.transform.position;
+
+        Vector3 difference =
+            detectedCheckpointAR - expectedCheckpointAR;
+
+        Debug.Log(
+            $"CHECKPOINT ERROR | " +
+            $"Expected: {expectedCheckpointAR} | " +
+            $"Detected: {detectedCheckpointAR} | " +
+            $"Difference: {difference} | " +
+            $"Distance: {difference.magnitude:F2}m"
+        );
+
+        Debug.Log(
+            $"CHECKPOINT ROTATION | " +
+            $"Image: {image.transform.eulerAngles} | " +
+            $"Horizontal: {horizontalRotation.eulerAngles} | " +
+            $"Campus: {campusRotation.eulerAngles}"
+        );
+
+        Vector3 expectedForward =
+            coordinateMapper.CampusToAR(
+                campusMarker.campusPosition +
+                campusRotation * Vector3.forward
+            ) -
+            coordinateMapper.CampusToAR(
+                campusMarker.campusPosition
             );
 
-            checkpointProcessed = true;
+        expectedForward.y = 0f;
 
-            Debug.Log("Checkpoint recalibration complete.");
+        if (expectedForward.sqrMagnitude > 0.0001f)
+        {
+            expectedForward.Normalize();
+
+            float expectedHeading =
+                Mathf.Atan2(
+                    expectedForward.x,
+                    expectedForward.z
+                ) * Mathf.Rad2Deg;
+
+            float detectedHeading =
+                horizontalRotation.eulerAngles.y;
+
+            float headingDifference =
+                Mathf.DeltaAngle(
+                    expectedHeading,
+                    detectedHeading
+                );
+
+            Debug.Log(
+                $"HEADING DEBUG | " +
+                $"Expected AR heading: {expectedHeading:F1} | " +
+                $"Detected AR heading: {detectedHeading:F1} | " +
+                $"Difference: {headingDifference:F1} degrees"
+            );
         }
+
+        coordinateMapper.Recalibrate(
+            image.transform.position,
+            horizontalRotation,
+            campusMarker.campusPosition,
+            campusRotation,
+            checkpointName
+        );
+
+        calibratedThisTrackingPeriod.Add(id);
+        lastRecalibrationTimes[checkpointName] = Time.time;
+
+        Debug.Log(
+            $"Checkpoint recalibration complete: {checkpointName}"
+        );
     }
 }

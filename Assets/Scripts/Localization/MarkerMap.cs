@@ -28,6 +28,11 @@ public class MarkerMap : MonoBehaviour
             }
         }
     }
+    
+    public IEnumerable<CampusMarker> GetAllMarkers()
+    {
+        return markers;
+    }
 
     public bool TryGetMarker(
         string markerName,
@@ -35,4 +40,6 @@ public class MarkerMap : MonoBehaviour
     {
         return markerLookup.TryGetValue(markerName, out marker);
     }
+    
+    
 }

@@ -31,9 +31,19 @@ MonoBehaviour:
       m_GuidLow: 5324303405257042973
       m_GuidHigh: 16088364587912113821
     m_SerializedTextureGuid:
-      m_GuidLow: 10512712603969186668
-      m_GuidHigh: 15288250702259738057
-    m_Size: {x: 0.18, y: 0.08191407}
+      m_GuidLow: 18344321875880721225
+      m_GuidHigh: 13789188755486916952
+    m_Size: {x: 0.23, y: 0.2277539}
     m_SpecifySize: 1
     m_Name: HallwayCheckpoint
+    m_Texture: {fileID: 0}
+  - m_SerializedGuid:
+      m_GuidLow: 5375940927499522239
+      m_GuidHigh: 11065340542248032909
+    m_SerializedTextureGuid:
+      m_GuidLow: 8112156157139868225
+      m_GuidHigh: 5086648886739907705
+    m_Size: {x: 0.225, y: 0.2281754}
+    m_SpecifySize: 1
+    m_Name: Number2Checkpoint
     m_Texture: {fileID: 0}

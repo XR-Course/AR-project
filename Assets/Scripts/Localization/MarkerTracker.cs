@@ -11,59 +11,49 @@ public class MarkerTracker : MonoBehaviour
     [SerializeField] private GameObject markerPrefab;
     [SerializeField] private MarkerMap markerMap;
     [SerializeField] private CoordinateMapper coordinateMapper;
+    [SerializeField] private LocalizationTrackingMonitor trackingMonitor;
 
     [Header("Recalibration")]
     [SerializeField] private float recalibrationCooldown = 5f;
 
     private readonly Dictionary<TrackableId, GameObject> markers = new();
 
-    // Checkpoints already recalibrated during their current
-    // continuous Tracking period.
-    private readonly HashSet<TrackableId> calibratedThisTrackingPeriod = new();
+    private readonly HashSet<TrackableId>
+        calibratedThisTrackingPeriod = new();
 
-    // Last successful recalibration time for each checkpoint.
-    private readonly Dictionary<string, float> lastRecalibrationTimes = new();
+    private readonly Dictionary<string, float>
+        lastRecalibrationTimes = new();
 
     private void OnEnable()
     {
         if (imageManager != null)
-        {
             imageManager.trackablesChanged.AddListener(OnImagesChanged);
-        }
     }
 
     private void OnDisable()
     {
         if (imageManager != null)
-        {
             imageManager.trackablesChanged.RemoveListener(OnImagesChanged);
-        }
     }
 
     private void OnImagesChanged(
         ARTrackablesChangedEventArgs<ARTrackedImage> args)
     {
         foreach (var image in args.added)
-        {
             UpdateMarker(image);
-        }
 
         foreach (var image in args.updated)
-        {
             UpdateMarker(image);
-        }
 
         foreach (var removed in args.removed)
         {
             calibratedThisTrackingPeriod.Remove(removed.Key);
 
             if (markers.Remove(removed.Key, out var marker))
-            {
                 Destroy(marker);
-            }
         }
     }
-
+    
     private void UpdateMarker(ARTrackedImage image)
     {
         if (!markers.TryGetValue(image.trackableId, out var marker))
@@ -76,14 +66,12 @@ public class MarkerTracker : MonoBehaviour
         }
 
         bool isTracking =
-            image.trackingState == TrackingState.Tracking;
+            image.trackingState == TrackingState.Tracking &&
+            ARSession.state == ARSessionState.SessionTracking;
 
         if (marker != null)
-        {
             marker.SetActive(isTracking);
-        }
 
-        // Allow a future recalibration after tracking is lost.
         if (!isTracking)
         {
             calibratedThisTrackingPeriod.Remove(image.trackableId);
@@ -99,9 +87,7 @@ public class MarkerTracker : MonoBehaviour
         }
 
         if (markerMap == null || coordinateMapper == null)
-        {
             return;
-        }
 
         if (!markerMap.TryGetMarker(
                 image.referenceImage.name,
@@ -110,81 +96,115 @@ public class MarkerTracker : MonoBehaviour
             Debug.LogWarning(
                 $"No campus mapping for: {image.referenceImage.name}"
             );
+
             return;
         }
 
         Quaternion campusRotation =
             Quaternion.Euler(campusMarker.campusRotation);
 
-        // Preserve the rotation calculation from our working version.
+        // Preserve the rotation calculation used
+        // in our previously working implementation.
         Quaternion horizontalRotation = Quaternion.Euler(
             0f,
             image.transform.eulerAngles.y,
             0f
         );
+        
+        bool requiresRecovery =
+            trackingMonitor != null &&
+            trackingMonitor.RequiresRelocalization;
 
-        // Initial localization.
-        if (!coordinateMapper.IsAligned)
+        // Initial localization or recovery using entrance.
+        if (!coordinateMapper.IsAligned || requiresRecovery)
         {
             if (campusMarker.markerName == "EntranceMarker")
             {
-                coordinateMapper.Recalibrate(
-                    image.transform.position,
+                AlignUsingMarker(
+                    image,
+                    campusMarker,
                     horizontalRotation,
-                    campusMarker.campusPosition,
-                    campusRotation,
-                    campusMarker.markerName
+                    campusRotation
                 );
 
-                Debug.Log("Initial localization complete.");
+                Debug.Log(
+                    requiresRecovery
+                        ? "Entrance relocalization complete."
+                        : "Initial localization complete."
+                );
+
+                return;
             }
 
-            return;
+            // Initial alignment must still start at entrance.
+            if (!coordinateMapper.IsAligned)
+                return;
         }
 
-        // Checkpoint-based recalibration.
-        if (campusMarker.markerName == "HallwayCheckpoint")
+        // Any registered marker other than the entrance is a checkpoint.
+        // Initial localization still requires EntranceMarker.
+        if (campusMarker.markerName != "EntranceMarker")
         {
             TryRecalibrateCheckpoint(
                 image,
                 campusMarker,
                 campusRotation,
-                horizontalRotation
+                horizontalRotation,
+                requiresRecovery
             );
         }
+    }
+
+    private void AlignUsingMarker(
+        ARTrackedImage image,
+        CampusMarker campusMarker,
+        Quaternion horizontalRotation,
+        Quaternion campusRotation)
+    {
+        coordinateMapper.Recalibrate(
+            image.transform.position,
+            horizontalRotation,
+            campusMarker.campusPosition,
+            campusRotation,
+            campusMarker.markerName
+        );
+
+        if (trackingMonitor != null)
+            trackingMonitor.ConfirmMarkerAlignment();
     }
 
     private void TryRecalibrateCheckpoint(
         ARTrackedImage image,
         CampusMarker campusMarker,
         Quaternion campusRotation,
-        Quaternion horizontalRotation)
+        Quaternion horizontalRotation,
+        bool requiresRecovery)
     {
         TrackableId id = image.trackableId;
         string checkpointName = campusMarker.markerName;
 
-        // Only one successful recalibration per continuous
-        // Tracking period.
-        if (calibratedThisTrackingPeriod.Contains(id))
+        // Normal recalibration requires a new tracking period.
+        // Recovery after AR tracking loss bypasses this limit.
+        if (!requiresRecovery &&
+            calibratedThisTrackingPeriod.Contains(id))
         {
             return;
         }
-
-        // Prevent rapid recalibration.
-        if (lastRecalibrationTimes.TryGetValue(
+        
+                // Recovery is allowed immediately.
+        if (!requiresRecovery &&
+            lastRecalibrationTimes.TryGetValue(
                 checkpointName,
                 out float lastTime))
         {
-            float elapsed = Time.time - lastTime;
-
-            if (elapsed < recalibrationCooldown)
-            {
+            if (Time.time - lastTime < recalibrationCooldown)
                 return;
-            }
         }
 
         Vector3 expectedCheckpointAR =
-            coordinateMapper.CampusToAR(campusMarker.campusPosition);
+            coordinateMapper.CampusToAR(
+                campusMarker.campusPosition
+            );
 
         Vector3 detectedCheckpointAR =
             image.transform.position;
@@ -245,19 +265,20 @@ public class MarkerTracker : MonoBehaviour
             );
         }
 
-        coordinateMapper.Recalibrate(
-            image.transform.position,
+        AlignUsingMarker(
+            image,
+            campusMarker,
             horizontalRotation,
-            campusMarker.campusPosition,
-            campusRotation,
-            checkpointName
+            campusRotation
         );
 
         calibratedThisTrackingPeriod.Add(id);
         lastRecalibrationTimes[checkpointName] = Time.time;
 
         Debug.Log(
-            $"Checkpoint recalibration complete: {checkpointName}"
+            requiresRecovery
+                ? $"Tracking recovery complete: {checkpointName}"
+                : $"Checkpoint recalibration complete: {checkpointName}"
         );
     }
 }

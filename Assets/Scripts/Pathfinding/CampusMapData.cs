@@ -25,17 +25,6 @@ namespace CampusNavigation.Pathfinding
         /// Builds a runtime graph. Throws if the data is invalid
         /// (duplicate ids, edges pointing to missing nodes, ...).
         /// </summary>
-        public CampusGraph BuildGraph()
-        {
-            var graph = new CampusGraph();
-
-            foreach (CampusNode node in nodes)
-                graph.AddNode(node);
-
-            foreach (CampusEdge edge in edges)
-                graph.AddEdge(edge.fromId, edge.toId, edge.distanceOverride);
-
-            return graph;
-        }
+        public CampusGraph BuildGraph() => CampusGraph.Build(nodes, edges);
     }
 }

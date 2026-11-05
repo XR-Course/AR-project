@@ -7,9 +7,16 @@ namespace CampusNavigation.Pathfinding
     /// <summary>
     /// Dijkstra shortest path over a CampusGraph.
     /// The graph is small (one corridor), so a simple O(V^2) search is enough.
+    ///
+    /// The search runs from the destination outwards. Because edges are
+    /// two-way, "previous" then points one step closer to the destination,
+    /// so a route can be read forwards from any start node.
     /// </summary>
     public class PathfindingService : IPathfindingService
     {
+        // Start points closer than this to a node are snapped to the node.
+        private const float SnapDistance = 0.01f;
+
         private readonly CampusGraph graph;
 
         public PathfindingService(CampusGraph graph)
@@ -19,6 +26,9 @@ namespace CampusNavigation.Pathfinding
 
         public IEnumerable<CampusNode> GetDestinations() => graph.Destinations;
 
+        public CampusNode FindNearestNode(Vector3 campusPosition) =>
+            graph.FindNearestNode(campusPosition);
+
         public PathResult FindPath(string startNodeId, string destinationNodeId)
         {
             if (!graph.ContainsNode(startNodeId))
@@ -27,6 +37,68 @@ namespace CampusNavigation.Pathfinding
             if (!graph.ContainsNode(destinationNodeId))
                 return PathResult.Failed(PathStatus.DestinationNotFound);
 
+            SearchResult search = SearchFrom(destinationNodeId);
+
+            if (float.IsPositiveInfinity(search.Distances[startNodeId]))
+                return PathResult.Failed(PathStatus.Unreachable);
+
+            return BuildResult(startNodeId, search, 0f, null);
+        }
+
+        public PathResult FindPathFromPosition(Vector3 campusPosition, string destinationNodeId)
+        {
+            if (graph.NodeCount == 0)
+                return PathResult.Failed(PathStatus.StartNotFound);
+
+            if (!graph.ContainsNode(destinationNodeId))
+                return PathResult.Failed(PathStatus.DestinationNotFound);
+
+            SearchResult search = SearchFrom(destinationNodeId);
+
+            if (!graph.TryFindNearestEdgePoint(campusPosition, out CampusGraph.EdgePoint hit))
+            {
+                // No corridors at all: the only possible route is standing at the destination.
+                CampusNode nearest = graph.FindNearestNode(campusPosition);
+
+                if (float.IsPositiveInfinity(search.Distances[nearest.id]))
+                    return PathResult.Failed(PathStatus.Unreachable);
+
+                float offset = CampusGraph.HorizontalDistance(campusPosition, nearest.campusPosition);
+                return BuildResult(nearest.id, search, offset, null);
+            }
+
+            // Standing somewhere on an edge: walk to whichever end gives the shorter total.
+            float viaFrom = hit.DistanceToFrom + search.Distances[hit.Edge.From.id];
+            float viaTo = hit.DistanceToTo + search.Distances[hit.Edge.To.id];
+
+            if (float.IsPositiveInfinity(viaFrom) && float.IsPositiveInfinity(viaTo))
+                return PathResult.Failed(PathStatus.Unreachable);
+
+            bool useFrom = viaFrom <= viaTo;
+            CampusNode firstNode = useFrom ? hit.Edge.From : hit.Edge.To;
+            float alongEdge = useFrom ? hit.DistanceToFrom : hit.DistanceToTo;
+
+            Vector3? entryPoint = alongEdge > SnapDistance ? hit.Point : (Vector3?)null;
+
+            return BuildResult(firstNode.id, search, hit.HorizontalOffset + alongEdge, entryPoint);
+        }
+
+        private readonly struct SearchResult
+        {
+            public readonly Dictionary<string, float> Distances;
+            public readonly Dictionary<string, string> NextTowardsSource;
+
+            public SearchResult(
+                Dictionary<string, float> distances,
+                Dictionary<string, string> nextTowardsSource)
+            {
+                Distances = distances;
+                NextTowardsSource = nextTowardsSource;
+            }
+        }
+
+        private SearchResult SearchFrom(string sourceId)
+        {
             var distances = new Dictionary<string, float>();
             var previous = new Dictionary<string, string>();
             var unvisited = new HashSet<string>();
@@ -37,17 +109,14 @@ namespace CampusNavigation.Pathfinding
                 unvisited.Add(node.id);
             }
 
-            distances[startNodeId] = 0f;
+            distances[sourceId] = 0f;
 
             while (unvisited.Count > 0)
             {
                 string current = ClosestUnvisited(unvisited, distances);
 
-                // Remaining nodes can't be reached from the start.
+                // Remaining nodes can't be reached from the source.
                 if (current == null)
-                    break;
-
-                if (current == destinationNodeId)
                     break;
 
                 unvisited.Remove(current);
@@ -67,10 +136,7 @@ namespace CampusNavigation.Pathfinding
                 }
             }
 
-            if (float.IsPositiveInfinity(distances[destinationNodeId]))
-                return PathResult.Failed(PathStatus.Unreachable);
-
-            return BuildResult(destinationNodeId, previous, distances[destinationNodeId]);
+            return new SearchResult(distances, previous);
         }
 
         private static string ClosestUnvisited(
@@ -92,19 +158,25 @@ namespace CampusNavigation.Pathfinding
             return closest;
         }
 
+        /// <summary>
+        /// Follows the search from the first node to the destination.
+        /// entryPoint (if any) is added as the first waypoint, before the first node.
+        /// </summary>
         private PathResult BuildResult(
-            string destinationNodeId,
-            Dictionary<string, string> previous,
-            float totalDistance)
+            string firstNodeId,
+            SearchResult search,
+            float extraDistance,
+            Vector3? entryPoint)
         {
             var nodeIds = new List<string>();
 
-            for (string id = destinationNodeId; id != null; previous.TryGetValue(id, out id))
+            for (string id = firstNodeId; id != null; search.NextTowardsSource.TryGetValue(id, out id))
                 nodeIds.Add(id);
 
-            nodeIds.Reverse();
+            var waypoints = new List<Vector3>(nodeIds.Count + 1);
 
-            var waypoints = new List<Vector3>(nodeIds.Count);
+            if (entryPoint.HasValue)
+                waypoints.Add(entryPoint.Value);
 
             foreach (string id in nodeIds)
             {
@@ -112,7 +184,9 @@ namespace CampusNavigation.Pathfinding
                 waypoints.Add(node.campusPosition);
             }
 
-            return PathResult.Found(nodeIds, waypoints, totalDistance);
+            float total = extraDistance + search.Distances[firstNodeId];
+
+            return PathResult.Found(nodeIds, waypoints, total, entryPoint.HasValue);
         }
     }
 }

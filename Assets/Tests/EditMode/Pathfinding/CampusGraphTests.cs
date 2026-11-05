@@ -78,6 +78,55 @@ namespace CampusNavigation.Pathfinding.Tests
         }
 
         [Test]
+        public void Build_FromSerializedData_UsesDistanceOverride()
+        {
+            CampusGraph graph = CampusGraph.Build(
+                new[] { new CampusNode("a", Vector3.zero), new CampusNode("b", new Vector3(1, 0, 0)) },
+                new[] { new CampusEdge("a", "b", 7f) });
+
+            Assert.AreEqual(2, graph.NodeCount);
+            Assert.AreEqual(1, graph.Edges.Count);
+            Assert.AreEqual(7f, graph.GetNeighbors("a")[0].Distance, 0.001f);
+        }
+
+        [Test]
+        public void Build_EdgeToMissingNode_Throws()
+        {
+            Assert.Throws<ArgumentException>(() => CampusGraph.Build(
+                new[] { new CampusNode("a", Vector3.zero) },
+                new[] { new CampusEdge("a", "missing") }));
+        }
+
+        [Test]
+        public void AddNode_Null_Throws()
+        {
+            Assert.Throws<ArgumentException>(() => new CampusGraph().AddNode(null));
+        }
+
+        [Test]
+        public void TryFindNearestEdgePoint_ProjectsOntoCorridor()
+        {
+            CampusGraph graph = MockCampusMap.Create();
+
+            Assert.IsTrue(graph.TryFindNearestEdgePoint(new Vector3(10.4f, 1.5f, 3f), out CampusGraph.EdgePoint hit));
+            Assert.AreEqual(MockCampusMap.JunctionA, hit.Edge.From.id);
+            Assert.AreEqual(MockCampusMap.XrLab, hit.Edge.To.id);
+            Assert.Less(Vector3.Distance(new Vector3(10, 0, 3), hit.Point), 0.001f);
+            Assert.AreEqual(3f, hit.DistanceToFrom, 0.001f);
+            Assert.AreEqual(5f, hit.DistanceToTo, 0.001f);
+            Assert.AreEqual(0.4f, hit.HorizontalOffset, 0.001f);
+        }
+
+        [Test]
+        public void TryFindNearestEdgePoint_NoEdges_ReturnsFalse()
+        {
+            var graph = new CampusGraph();
+            graph.AddNode(new CampusNode("a", Vector3.zero));
+
+            Assert.IsFalse(graph.TryFindNearestEdgePoint(Vector3.zero, out _));
+        }
+
+        [Test]
         public void GetNeighbors_UnknownNode_ReturnsEmpty()
         {
             CampusGraph graph = MockCampusMap.Create();

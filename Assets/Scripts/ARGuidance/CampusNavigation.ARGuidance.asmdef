@@ -1,0 +1,19 @@
+{
+    "name": "CampusNavigation.ARGuidance",
+    "rootNamespace": "CampusNavigation.ARGuidance",
+    "references": [
+        "CampusNavigation.Pathfinding",
+        "CampusNavigation.Navigation",
+        "UnityEngine.UI",
+        "Unity.TextMeshPro"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

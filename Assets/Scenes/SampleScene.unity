@@ -1566,11 +1566,8 @@ MonoBehaviour:
     campusPosition: {x: 0, y: 0, z: 0}
     campusRotation: {x: 0, y: 0, z: 0}
   - markerName: HallwayCheckpoint
-    campusPosition: {x: 1, y: 0, z: 0}
-    campusRotation: {x: 0, y: 0, z: 0}
-  - markerName: Number2Checkpoint
-    campusPosition: {x: 2, y: 0, z: 0}
-    campusRotation: {x: 0, y: 0, z: 0}
+    campusPosition: {x: 2, y: 0, z: 0.7}
+    campusRotation: {x: 0, y: 270, z: 0}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0

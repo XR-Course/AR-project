@@ -21,9 +21,9 @@ MonoBehaviour:
       m_GuidLow: 5487426935472953021
       m_GuidHigh: 4708142647311435962
     m_SerializedTextureGuid:
-      m_GuidLow: 307639391833383039
-      m_GuidHigh: 17815810049073171289
-    m_Size: {x: 0.25, y: 0.08283407}
+      m_GuidLow: 4729080170200611744
+      m_GuidHigh: 16935399290833618349
+    m_Size: {x: 0.18, y: 0.18}
     m_SpecifySize: 1
     m_Name: EntranceMarker
     m_Texture: {fileID: 0}
@@ -31,19 +31,9 @@ MonoBehaviour:
       m_GuidLow: 5324303405257042973
       m_GuidHigh: 16088364587912113821
     m_SerializedTextureGuid:
-      m_GuidLow: 3315818871644230138
-      m_GuidHigh: 11106072531113753323
-    m_Size: {x: 0.25, y: 0.08040731}
+      m_GuidLow: 5107640479568253634
+      m_GuidHigh: 5638780131260576185
+    m_Size: {x: 0.18, y: 0.18}
     m_SpecifySize: 1
     m_Name: HallwayCheckpoint
-    m_Texture: {fileID: 0}
-  - m_SerializedGuid:
-      m_GuidLow: 5375940927499522239
-      m_GuidHigh: 11065340542248032909
-    m_SerializedTextureGuid:
-      m_GuidLow: 8112156157139868225
-      m_GuidHigh: 5086648886739907705
-    m_Size: {x: 0.225, y: 0.2281754}
-    m_SpecifySize: 1
-    m_Name: Number2Checkpoint
     m_Texture: {fileID: 0}

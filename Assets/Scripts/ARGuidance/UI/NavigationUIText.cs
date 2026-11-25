@@ -59,7 +59,7 @@ namespace CampusNavigation.ARGuidance
             NavigationState.Scanning => new StatusBanner(
                 BannerSeverity.Info,
                 "Scan a marker",
-                "Point your camera at the nearest campus marker to start."),
+                "Point your camera at the entrance marker to start."),
 
             NavigationState.Relocalizing => new StatusBanner(
                 BannerSeverity.Warning,

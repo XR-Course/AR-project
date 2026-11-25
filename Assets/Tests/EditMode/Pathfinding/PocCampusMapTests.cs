@@ -6,8 +6,8 @@ using UnityEngine;
 namespace CampusNavigation.Pathfinding.Tests
 {
     /// <summary>
-    /// Checks the proof-of-concept map asset. Marker positions must match
-    /// the MarkerMap in SampleScene, otherwise routes are drawn in the wrong place.
+    /// Checks the proof-of-concept map asset. Marker nodes represent floor
+    /// positions below the markers in AndroidPoc's MarkerMap.
     /// </summary>
     public class PocCampusMapTests
     {
@@ -27,8 +27,8 @@ namespace CampusNavigation.Pathfinding.Tests
         [Test]
         public void Map_HasExpectedSize()
         {
-            Assert.AreEqual(6, graph.NodeCount);
-            Assert.AreEqual(5, graph.Edges.Count);
+            Assert.AreEqual(5, graph.NodeCount);
+            Assert.AreEqual(4, graph.Edges.Count);
         }
 
         [Test]
@@ -40,8 +40,8 @@ namespace CampusNavigation.Pathfinding.Tests
         }
 
         [TestCase("EntranceMarker", 0f, 0f, 0f)]
-        [TestCase("HallwayCheckpoint", 2f, 0f, 0.7f)]
-        public void MarkerNodes_MatchMarkerMapPositions(string markerName, float x, float y, float z)
+        [TestCase("HallwayCheckpoint", 1f, 0f, 0f)]
+        public void MarkerNodes_MatchMarkerFloorPositions(string markerName, float x, float y, float z)
         {
             Assert.IsTrue(graph.TryGetNodeByMarker(markerName, out CampusNode node), $"No node for {markerName}");
             Assert.Less(Vector3.Distance(new Vector3(x, y, z), node.campusPosition), 0.001f);
@@ -61,14 +61,14 @@ namespace CampusNavigation.Pathfinding.Tests
         }
 
         [Test]
-        public void EntranceToXrLab_PassesCheckpointAndJunction()
+        public void EntranceToXrLab_PassesCheckpoint()
         {
             PathResult result = new PathfindingService(graph).FindPath("entrance", "xr-lab");
 
             CollectionAssert.AreEqual(
-                new[] { "entrance", "hallway-checkpoint", "junction", "xr-lab" },
+                new[] { "entrance", "hallway-checkpoint", "xr-lab" },
                 result.NodeIds.ToArray());
-            Assert.AreEqual(Mathf.Sqrt(4f + 0.49f) + 4f + 2.3f, result.TotalDistance, 0.001f);
+            Assert.AreEqual(2f, result.TotalDistance, 0.001f);
         }
     }
 }

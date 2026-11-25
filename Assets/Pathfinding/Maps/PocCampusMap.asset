@@ -20,27 +20,22 @@ MonoBehaviour:
     markerName: EntranceMarker
   - id: hallway-checkpoint
     displayName: Hallway checkpoint
-    campusPosition: {x: 2, y: 0, z: 0.7}
+    campusPosition: {x: 1, y: 0, z: 0}
     isDestination: 0
     markerName: HallwayCheckpoint
-  - id: junction
-    displayName: Junction
-    campusPosition: {x: 6, y: 0, z: 0.7}
-    isDestination: 0
-    markerName:
   - id: xr-lab
     displayName: XR Lab
-    campusPosition: {x: 6, y: 0, z: 3}
+    campusPosition: {x: 1, y: 0, z: 1}
     isDestination: 1
     markerName:
   - id: classroom
     displayName: Classroom
-    campusPosition: {x: 6, y: 0, z: -1.5}
+    campusPosition: {x: 1, y: 0, z: -1}
     isDestination: 1
     markerName:
   - id: reception
     displayName: Reception
-    campusPosition: {x: 10, y: 0, z: 0.7}
+    campusPosition: {x: 2, y: 0, z: 0}
     isDestination: 1
     markerName:
   edges:
@@ -48,14 +43,11 @@ MonoBehaviour:
     toId: hallway-checkpoint
     distanceOverride: 0
   - fromId: hallway-checkpoint
-    toId: junction
-    distanceOverride: 0
-  - fromId: junction
     toId: xr-lab
     distanceOverride: 0
-  - fromId: junction
+  - fromId: hallway-checkpoint
     toId: classroom
     distanceOverride: 0
-  - fromId: junction
+  - fromId: hallway-checkpoint
     toId: reception
     distanceOverride: 0

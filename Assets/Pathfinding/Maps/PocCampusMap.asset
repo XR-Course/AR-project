@@ -1,0 +1,53 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fc96e207d3aa85145afc6122893988c5, type: 3}
+  m_Name: PocCampusMap
+  m_EditorClassIdentifier: CampusNavigation.Pathfinding::CampusNavigation.Pathfinding.CampusMapData
+  nodes:
+  - id: entrance
+    displayName: Entrance
+    campusPosition: {x: 0, y: 0, z: 0}
+    isDestination: 0
+    markerName: EntranceMarker
+  - id: hallway-checkpoint
+    displayName: Hallway checkpoint
+    campusPosition: {x: 1, y: 0, z: 0}
+    isDestination: 0
+    markerName: HallwayCheckpoint
+  - id: xr-lab
+    displayName: XR Lab
+    campusPosition: {x: 1, y: 0, z: 1}
+    isDestination: 1
+    markerName:
+  - id: classroom
+    displayName: Classroom
+    campusPosition: {x: 1, y: 0, z: -1}
+    isDestination: 1
+    markerName:
+  - id: reception
+    displayName: Reception
+    campusPosition: {x: 2, y: 0, z: 0}
+    isDestination: 1
+    markerName:
+  edges:
+  - fromId: entrance
+    toId: hallway-checkpoint
+    distanceOverride: 0
+  - fromId: hallway-checkpoint
+    toId: xr-lab
+    distanceOverride: 0
+  - fromId: hallway-checkpoint
+    toId: classroom
+    distanceOverride: 0
+  - fromId: hallway-checkpoint
+    toId: reception
+    distanceOverride: 0
